@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSINT // РАЗВЕДКА ПО ОТКРЫТЫМ ИСТОЧНИКАМ</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #00ff41;
+    --green-dim: #00aa2a;
+    --green-glow: #00ff4155;
+    --bg: #000a00;
+    --bg2: #001200;
+    --amber: #ffb000;
+    --red: #ff0040;
+    --cyan: #00ffff;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* CRT SCANLINES OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+    animation: scanroll 8s linear infinite;
+  }
+
+  /* CRT VIGNETTE */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  @keyframes scanroll {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 100px; }
+  }
+
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  @keyframes flicker {
+    0%, 97%, 100% { opacity: 1; }
+    98% { opacity: 0.6; }
+    99% { opacity: 0.9; }
+  }
+
+  @keyframes glitch {
+    0% { transform: none; clip-path: none; }
+    10% { transform: translate(-2px,0) skewX(-1deg); clip-path: inset(0 0 90% 0); }
+    20% { transform: translate(2px,0); clip-path: inset(40% 0 50% 0); }
+    30% { transform: none; clip-path: none; }
+    100% { transform: none; clip-path: none; }
+  }
+
+  @keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 5px var(--green-glow), inset 0 0 5px var(--green-glow); }
+    50% { box-shadow: 0 0 20px var(--green-glow), inset 0 0 10px var(--green-glow); }
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(100vw); }
+    100% { transform: translateX(-100%); }
+  }
+
+  /* TICKER */
+  .ticker-wrap {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: #000;
+    border-top: 1px solid var(--green-dim);
+    overflow: hidden;
+    height: 28px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+  }
+  .ticker-label {
+    background: var(--green);
+    color: #000;
+    padding: 2px 10px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    z-index: 2;
+  }
+  .ticker-text {
+    white-space: nowrap;
+    animation: marquee 40s linear infinite;
+    font-size: 12px;
+    color: var(--green-dim);
+    letter-spacing: 1px;
+  }
+
+  /* TOP NAV */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(0,10,0,0.95);
+    border-bottom: 1px solid var(--green-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px;
+    height: 50px;
+    backdrop-filter: blur(4px);
+    animation: flicker 10s infinite;
+  }
+
+  .nav-logo {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green);
+    letter-spacing: 2px;
+  }
+
+  .nav-logo span { color: var(--amber); }
+
+  .nav-links {
+    display: flex;
+    gap: 30px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--green-dim);
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: color 0.1s, text-shadow 0.1s;
+    text-transform: uppercase;
+  }
+  .nav-links a:hover {
+    color: var(--green);
+    text-shadow: 0 0 8px var(--green);
+  }
+
+  .nav-status {
+    font-size: 11px;
+    color: var(--green-dim);
+  }
+  .nav-status .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: blink 1s infinite;
+    margin-right: 6px;
+  }
+
+  /* MAIN LAYOUT */
+  main { padding-bottom: 50px; }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    position: relative;
+    text-align: center;
+  }
+
+  .hero-ascii {
+    font-family: 'VT323', monospace;
+    font-size: clamp(14px, 2vw, 22px);
+    color: var(--green-dim);
+    line-height: 1.2;
+    white-space: pre;
+    text-shadow: 0 0 4px var(--green-dim);
+    margin-bottom: 40px;
+    animation: fadeIn 1s ease both;
+  }
+
+  .hero-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(18px, 4vw, 42px);
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green), 0 0 40px var(--green-glow);
+    line-height: 1.4;
+    animation: fadeIn 1s 0.3s ease both, glitch 5s 2s infinite;
+    margin-bottom: 20px;
+  }
+
+  .hero-sub {
+    font-family: 'VT323', monospace;
+    font-size: clamp(20px, 3vw, 32px);
+    color: var(--amber);
+    letter-spacing: 4px;
+    margin-bottom: 40px;
+    animation: fadeIn 1s 0.6s ease both;
+  }
+
+  .prompt-line {
+    font-size: 16px;
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: fadeIn 1s 1s ease both;
+  }
+  .prompt-line::before { content: '> '; color: var(--green-dim); }
+  .cursor {
+    display: inline-block;
+    width: 10px; height: 18px;
+    background: var(--green);
+    animation: blink 0.8s infinite;
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,65,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* SECTION BASE */
+  section {
+    padding: 80px 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 50px;
+  }
+
+  .section-header h2 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(12px, 2.5vw, 18px);
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green-glow);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .section-num {
+    font-family: 'VT323', monospace;
+    font-size: 28px;
+    color: var(--green-dim);
+    border: 1px solid var(--green-dim);
+    padding: 2px 10px;
+  }
+
+  .divider {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--green-dim), transparent);
+  }
+
+  /* TERMINAL BOX */
+  .terminal {
+    background: var(--bg2);
+    border: 1px solid var(--green-dim);
+    border-radius: 2px;
+    overflow: hidden;
+    animation: pulse-border 4s infinite;
+    margin-bottom: 30px;
+  }
+
+  .terminal-bar {
+    background: #001a00;
+    border-bottom: 1px solid var(--green-dim);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .term-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .term-dot.r { background: var(--red); box-shadow: 0 0 4px var(--red); }
+  .term-dot.y { background: var(--amber); box-shadow: 0 0 4px var(--amber); }
+  .term-dot.g { background: var(--green); box-shadow: 0 0 4px var(--green); }
+
+  .term-title {
+    font-size: 12px;
+    color: var(--green-dim);
+    margin-left: 10px;
+    letter-spacing: 2px;
+  }
+
+  .terminal-body {
+    padding: 24px;
+  }
+
+  .term-line {
+    margin-bottom: 8px;
+  }
+
+  .term-line .cmd { color: var(--cyan); }
+  .term-line .path { color: var(--amber); }
+  .term-line .output { color: var(--green-dim); }
+  .term-line .highlight { color: var(--green); font-weight: bold; }
+  .term-line .warn { color: var(--red); }
+
+  /* DEFINITION BOX */
+  .def-box {
+    border: 1px solid var(--green-dim);
+    border-left: 3px solid var(--green);
+    padding: 24px 28px;
+    background: #000d00;
+    margin-bottom: 30px;
+    font-size: 16px;
+    color: var(--green);
+    line-height: 1.8;
+  }
+  .def-box .label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--amber);
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+    display: block;
+  }
+
+  /* CARDS GRID */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    border: 1px solid var(--green-dim);
+    background: var(--bg2);
+    padding: 24px;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: default;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 2px;
+    background: var(--green-dim);
+    transition: background 0.2s;
+  }
+
+  .card:hover {
+    border-color: var(--green);
+    box-shadow: 0 0 20px var(--green-glow);
+  }
+
+  .card:hover::before {
+    background: var(--green);
+  }
+
+  .card-icon {
+    font-family: 'VT323', monospace;
+    font-size: 42px;
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green);
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .card h3 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--green);
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+  }
+
+  .card p {
+    color: var(--green-dim);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .card-tag {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 3px 8px;
+    border: 1px solid var(--green-dim);
+    font-size: 11px;
+    color: var(--green-dim);
+    letter-spacing: 1px;
+  }
+
+  /* TOOLS LIST */
+  .tools-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  .tool-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #001f00;
+    background: var(--bg2);
+    transition: border-color 0.15s;
+  }
+
+  .tool-item:hover { border-color: var(--green-dim); }
+
+  .tool-item::before {
+    content: '▶';
+    color: var(--green);
+    font-size: 12px;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .tool-item-text { }
+
+  .tool-item-text strong {
+    display: block;
+    color: var(--green);
+    font-size: 14px;
+    margin-bottom: 3px;
+  }
+
+  .tool-item-text span {
+    font-size: 12px;
+    color: var(--green-dim);
+  }
+
+  /* PHASES */
+  .phases {
+    counter-reset: phase;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .phase {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 24px;
+    padding: 28px 0;
+    border-bottom: 1px dashed #001a00;
+    position: relative;
+  }
+
+  .phase:last-child { border-bottom: none; }
+
+  .phase-num {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 22px;
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green);
+    text-align: center;
+    align-self: start;
+    padding-top: 4px;
+  }
+
+  .phase h3 {
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    color: var(--amber);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .phase p {
+    color: var(--green-dim);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .phase-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .tag {
+    padding: 2px 8px;
+    background: #001a00;
+    border: 1px solid var(--green-dim);
+    font-size: 11px;
+    color: var(--green-dim);
+    letter-spacing: 1px;
+  }
+
+  /* WARNING BOX */
+  .warn-box {
+    border: 2px solid var(--red);
+    padding: 20px 24px;
+    background: #0f0000;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-top: 40px;
+  }
+
+  .warn-icon {
+    font-family: 'VT323', monospace;
+    font-size: 36px;
+    color: var(--red);
+    text-shadow: 0 0 8px var(--red);
+    flex-shrink: 0;
+    animation: blink 1.5s infinite;
+  }
+
+  .warn-box p {
+    color: #ff6680;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .warn-box strong {
+    display: block;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--red);
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--green-dim);
+    padding: 30px 40px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--green-dim);
+    letter-spacing: 2px;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    margin-bottom: 30px;
+  }
+
+  footer .f-logo {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--green);
+    margin-bottom: 16px;
+    text-shadow: 0 0 8px var(--green);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    nav { padding: 0 14px; }
+    .nav-links { gap: 14px; }
+    .nav-links a { font-size: 10px; }
+    section { padding: 50px 14px; }
+    .hero-ascii { font-size: 10px; }
+    .phase { grid-template-columns: 40px 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-label">LIVE</div>
+  <div class="ticker-text">
+    &nbsp;&nbsp;&nbsp; OSINT :: РАЗВЕДКА ПО ОТКРЫТЫМ ИСТОЧНИКАМ &nbsp;///&nbsp; ДАННЫЕ ОБЩЕДОСТУПНЫ. ЗНАНИЯ — НЕТ &nbsp;///&nbsp; GOOGLE DORKING &nbsp;▌&nbsp; WHOIS LOOKUP &nbsp;▌&nbsp; GEOINT &nbsp;▌&nbsp; SOCMINT &nbsp;▌&nbsp; SIGINT &nbsp;///&nbsp; ИНФОРМАЦИЯ — ОРУЖИЕ &nbsp;///&nbsp; SHODAN &nbsp;▌&nbsp; MALTEGO &nbsp;▌&nbsp; RECON-NG &nbsp;▌&nbsp; THEHARVERSTER &nbsp;///&nbsp;
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">OS<span>INT</span></div>
+  <ul class="nav-links">
+    <li><a href="#about">О чём</a></li>
+    <li><a href="#methods">Методы</a></li>
+    <li><a href="#tools">Инструменты</a></li>
+    <li><a href="#phases">Процесс</a></li>
+  </ul>
+  <div class="nav-status"><span class="dot"></span>ONLINE</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="hero-grid"></div>
+
+  <div class="hero-ascii">
+ ██████╗ ███████╗██╗███╗   ██╗████████╗
+██╔═══██╗██╔════╝██║████╗  ██║╚══██╔══╝
+██║   ██║███████╗██║██╔██╗ ██║   ██║   
+██║   ██║╚════██║██║██║╚██╗██║   ██║   
+╚██████╔╝███████║██║██║ ╚████║   ██║   
+ ╚═════╝ ╚══════╝╚═╝╚═╝  ╚═══╝   ╚═╝  </div>
+
+  <h1 class="hero-title">РАЗВЕДКА<br>ПО ОТКРЫТЫМ<br>ИСТОЧНИКАМ</h1>
+
+  <div class="hero-sub">[ OPEN SOURCE INTELLIGENCE ]</div>
+
+  <div class="prompt-line">
+    <span id="typed-text">Ищи. Анализируй. Понимай.</span>
+    <span class="cursor"></span>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <h2>Что такое OSINT?</h2>
+    <div class="divider"></div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="term-dot r"></span>
+      <span class="term-dot y"></span>
+      <span class="term-dot g"></span>
+      <span class="term-title">// osint_intro.sh</span>
+    </div>
+    <div class="terminal-body">
+      <div class="term-line"><span class="path">root@osint:~$</span> <span class="cmd">cat definition.txt</span></div>
+      <div class="term-line"><span class="output">> Загрузка определения...</span></div>
+      <div class="term-line">&nbsp;</div>
+      <div class="term-line"><span class="highlight">OSINT</span> <span class="output">— это сбор и анализ информации из</span></div>
+      <div class="term-line"><span class="output">открытых, общедоступных источников для</span></div>
+      <div class="term-line"><span class="output">получения разведывательных данных.</span></div>
+      <div class="term-line">&nbsp;</div>
+      <div class="term-line"><span class="path">root@osint:~$</span> <span class="cmd">whoami</span></div>
+      <div class="term-line"><span class="output">исследователь | журналист | специалист по безопасности | аналитик</span></div>
+      <div class="term-line">&nbsp;</div>
+      <div class="term-line"><span class="path">root@osint:~$</span> <span class="cmd">echo "Доступно каждому. Требует умения."</span></div>
+      <div class="term-line"><span class="warn">Доступно каждому. Требует умения.</span></div>
+      <div class="term-line">&nbsp;</div>
+      <div class="term-line"><span class="path">root@osint:~$</span> <span class="cursor"></span></div>
+    </div>
+  </div>
+
+  <div class="def-box">
+    <span class="label">// ОПРЕДЕЛЕНИЕ</span>
+    OSINT (Open Source Intelligence) — разведка по открытым источникам. Методология сбора данных из публично доступных ресурсов: социальных сетей, новостей, баз данных, спутниковых снимков, форумов, архивов, DNS-записей и любых других источников, не требующих взлома или получения скрытого доступа.
+  </div>
+</section>
+
+<!-- METHODS -->
+<section id="methods">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <h2>Типы разведки</h2>
+    <div class="divider"></div>
+  </div>
+
+  <div class="cards-grid">
+    <div class="card">
+      <span class="card-icon">◈ WEB</span>
+      <h3>WEBINT</h3>
+      <p>Разведка в открытом вебе: индексируемые страницы, архивы, кешированные версии, метаданные документов, скрытые директории, утечки паролей.</p>
+      <span class="card-tag">WEB INTELLIGENCE</span>
+    </div>
+    <div class="card">
+      <span class="card-icon">◈ SOC</span>
+      <h3>SOCMINT</h3>
+      <p>Анализ социальных сетей: профили, связи, геотеги, публикации, скрытые аккаунты, анализ поведения и графа контактов.</p>
+      <span class="card-tag">SOCIAL MEDIA INT</span>
+    </div>
+    <div class="card">
+      <span class="card-icon">◈ GEO</span>
+      <h3>GEOINT</h3>
+      <p>Геопространственная разведка: спутниковые снимки, геолокация фотографий, карты, анализ местности, перемещения объектов.</p>
+      <span class="card-tag">GEO INTELLIGENCE</span>
+    </div>
+    <div class="card">
+      <span class="card-icon">◈ DNS</span>
+      <h3>TECHINT</h3>
+      <p>Технический OSINT: WHOIS, DNS-записи, сертификаты SSL, открытые порты через Shodan, поиск уязвимостей, отпечатки систем.</p>
+      <span class="card-tag">TECHNICAL INT</span>
+    </div>
+    <div class="card">
+      <span class="card-icon">◈ HUM</span>
+      <h3>HUMINT (open)</h3>
+      <p>Открытый сбор о людях: публичные записи, судебные базы, ЕГРЮЛ, выписки из реестров, публикации, паспортные базы утечек.</p>
+      <span class="card-tag">HUMAN INT</span>
+    </div>
+    <div class="card">
+      <span class="card-icon">◈ DRK</span>
+      <h3>DARKINT</h3>
+      <p>Мониторинг даркнета: утечки данных, форумы, слитые базы, продажа доступов, упоминания организаций и персон на закрытых площадках.</p>
+      <span class="card-tag">DARKNET INT</span>
+    </div>
+  </div>
+</section>
+
+<!-- TOOLS -->
+<section id="tools">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <h2>Инструменты</h2>
+    <div class="divider"></div>
+  </div>
+
+  <div class="terminal" style="margin-bottom: 30px;">
+    <div class="terminal-bar">
+      <span class="term-dot r"></span>
+      <span class="term-dot y"></span>
+      <span class="term-dot g"></span>
+      <span class="term-title">// tools_available.py</span>
+    </div>
+    <div class="terminal-body">
+      <div class="term-line"><span class="path">root@osint:~$</span> <span class="cmd">ls ./tools --classify</span></div>
+      <div class="term-line"><span class="output">Сканирование репозитория инструментов...</span></div>
+      <div class="term-line"><span class="highlight">OK</span> <span class="output">Найдено 14 инструментов</span></div>
+    </div>
+  </div>
+
+  <div class="tools-list">
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Maltego</strong>
+        <span>Граф связей, анализ отношений между сущностями</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Shodan</strong>
+        <span>Поиск интернет-устройств, открытые порты и сервисы</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>theHarvester</strong>
+        <span>Сбор email, поддоменов, IP из открытых источников</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Recon-ng</strong>
+        <span>Фреймворк для автоматизированной разведки</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>SpiderFoot</strong>
+        <span>Автоматический OSINT по IP, домену, email, имени</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Wayback Machine</strong>
+        <span>Архив интернета: история сайтов с 1996 года</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Google Dorks</strong>
+        <span>Расширенный поиск для нахождения скрытых данных</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>OSINT Framework</strong>
+        <span>Каталог сотен инструментов и ресурсов по категориям</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Exiftool</strong>
+        <span>Извлечение метаданных из фото, документов, видео</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Have I Been Pwned</strong>
+        <span>Проверка email и телефонов в утечках данных</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Creepy</strong>
+        <span>Геолокация по публикациям в соцсетях</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Metagoofil</strong>
+        <span>Извлечение метаданных из публичных документов</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Social Mapper</strong>
+        <span>Кросс-платформенный поиск профилей по фото</span>
+      </div>
+    </div>
+    <div class="tool-item">
+      <div class="tool-item-text">
+        <strong>Twint</strong>
+        <span>Скрейпинг Twitter без API, архивный поиск</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PHASES -->
+<section id="phases">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <h2>Процесс расследования</h2>
+    <div class="divider"></div>
+  </div>
+
+  <div class="phases">
+    <div class="phase">
+      <div class="phase-num">01</div>
+      <div>
+        <h3>ПЛАНИРОВАНИЕ И ЦЕЛЕПОЛАГАНИЕ</h3>
+        <p>Определение задачи: кто или что является объектом? Какие данные нужны? Установка границ исследования и правовых ограничений. Создание плана с указанием источников и методов сбора.</p>
+        <div class="phase-tags">
+          <span class="tag">SCOPE</span>
+          <span class="tag">TARGETING</span>
+          <span class="tag">LEGAL CHECK</span>
+        </div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">02</div>
+      <div>
+        <h3>СБОР ДАННЫХ (COLLECTION)</h3>
+        <p>Активный и пассивный сбор данных из всех доступных источников: поисковые системы, социальные сети, публичные реестры, базы данных, архивы, технические данные DNS/WHOIS.</p>
+        <div class="phase-tags">
+          <span class="tag">PASSIVE RECON</span>
+          <span class="tag">ACTIVE RECON</span>
+          <span class="tag">DORKING</span>
+        </div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">03</div>
+      <div>
+        <h3>ОБРАБОТКА И ВЕРИФИКАЦИЯ</h3>
+        <p>Проверка достоверности найденных данных. Перекрёстный анализ между источниками. Фильтрация шума. Установление временных меток и актуальности информации.</p>
+        <div class="phase-tags">
+          <span class="tag">CROSS-CHECK</span>
+          <span class="tag">VERIFICATION</span>
+          <span class="tag">TIMELINE</span>
+        </div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">04</div>
+      <div>
+        <h3>АНАЛИЗ И ВИЗУАЛИЗАЦИЯ</h3>
+        <p>Построение графов связей, временных линий, географических карт. Выявление паттернов, аномалий и скрытых связей. Синтез разрозненных данных в цельную картину.</p>
+        <div class="phase-tags">
+          <span class="tag">LINK ANALYSIS</span>
+          <span class="tag">MAPPING</span>
+          <span class="tag">PATTERN REC</span>
+        </div>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">05</div>
+      <div>
+        <h3>ОТЧЁТ И ВЫВОДЫ</h3>
+        <p>Формирование структурированного отчёта с источниками, методологией и выводами. Разграничение фактов и предположений. Сохранение доказательной базы для возможного последующего использования.</p>
+        <div class="phase-tags">
+          <span class="tag">REPORTING</span>
+          <span class="tag">EVIDENCE</span>
+          <span class="tag">CONCLUSIONS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="warn-box">
+    <div class="warn-icon">⚠</div>
+    <div>
+      <strong>// ЭТИКА И ЗАКОННОСТЬ</strong>
+      <p>OSINT — это не взлом и не слежка. Работа только с публично доступными данными не нарушает закон, но может нарушать этику. Уважайте приватность, не собирайте данные о частных лицах без весомых оснований, соблюдайте GDPR и местное законодательство. Разведка должна служить общественному благу: журналистике, безопасности, исследованиям — но не преследованию или дискредитации людей.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="f-logo">// OSINT DATABASE v2.4.1 //</div>
+  <div>ИНФОРМАЦИЯ ПРИНАДЛЕЖИТ ВСЕМ &nbsp;|&nbsp; ЗНАНИЕ — СИЛА &nbsp;|&nbsp; РАЗВЕДКА — ОТВЕТСТВЕННОСТЬ</div>
+  <br>
+  <div style="color:#003300; font-size:14px;">ROOT@OSINT:~$ _</div>
+</footer>
+
+<script>
+  // TYPEWRITER for hero
+  const phrases = [
+    'Ищи. Анализируй. Понимай.',
+    'Данные везде. Умей их читать.',
+    'Открытые источники. Закрытые тайны.',
+    'Один IP раскрывает многое.',
+    'Информация — не взлом. Это наблюдение.'
+  ];
+  let pi = 0, ci = 0, deleting = false;
+  const el = document.getElementById('typed-text');
+  function type() {
+    const txt = phrases[pi];
+    if (!deleting) {
+      el.textContent = txt.slice(0, ++ci);
+      if (ci === txt.length) { deleting = true; setTimeout(type, 2200); return; }
+    } else {
+      el.textContent = txt.slice(0, --ci);
+      if (ci === 0) { deleting = false; pi = (pi + 1) % phrases.length; }
+    }
+    setTimeout(type, deleting ? 45 : 80);
+  }
+  setTimeout(type, 1500);
+
+  // SCROLL ANIMATIONS
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.card, .tool-item, .phase, .def-box').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(20px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+  });
+
+  // RANDOM GLITCH on logo
+  const logo = document.querySelector('.nav-logo');
+  setInterval(() => {
+    if (Math.random() < 0.1) {
+      logo.style.textShadow = '2px 0 #ff0040, -2px 0 #00ffff';
+      setTimeout(() => { logo.style.textShadow = ''; }, 80);
+    }
+  }, 1000);
+</script>
+</body>
+</html>
